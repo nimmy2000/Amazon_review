@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Amazon Review Sentiment Analysis</title>
+
+  <!-- Simple, modern CSS (no external libs) -->
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --muted:#6c757d;
+      --primary:#0d6efd;   /* blue */
+      --success:#198754;   /* green */
+      --danger:#dc3545;    /* red */
+      --accent:#495057;
+      --glass: rgba(13,110,253,0.06);
+      --radius:12px;
+      --shadow: 0 6px 18px rgba(20,20,50,0.06);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      background: linear-gradient(180deg,#f8fbff 0%,var(--bg) 100%);
+      color:var(--accent);
+    }
+
+    .container{
+      max-width:900px;
+      margin:48px auto;
+      padding:28px;
+    }
+
+    .card{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:22px;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:18px;
+    }
+
+    .brand{
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+
+    .logo {
+      width:54px;
+      height:54px;
+      border-radius:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:var(--glass);
+      color:var(--primary);
+      font-weight:700;
+      font-size:18px;
+    }
+
+    h1{ margin:0; font-size:20px; color:#0b2240; }
+    p.lead{ margin:0; color:var(--muted); font-size:13px; }
+
+    form .row{ display:flex; gap:14px; margin-top:14px; }
+    .col{ flex:1; }
+
+    label{ display:block; margin-bottom:8px; font-size:13px; color:var(--muted); }
+
+    textarea{
+      width:100%;
+      min-height:140px;
+      background:#fbfdff;
+      border:1px solid #e6e9ef;
+      padding:12px 14px;
+      border-radius:10px;
+      font-size:14px;
+      resize:vertical;
+      box-sizing:border-box;
+    }
+
+    select,input[type="text"]{
+      width:100%;
+      padding:10px 12px;
+      border-radius:8px;
+      border:1px solid #e6e9ef;
+      font-size:14px;
+      background:#fff;
+    }
+
+    .controls{
+      display:flex;
+      gap:10px;
+      margin-top:14px;
+      align-items:center;
+    }
+
+    .btn{
+      padding:10px 14px;
+      border-radius:10px;
+      border:none;
+      font-weight:600;
+      cursor:pointer;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .btn-primary{ background:var(--primary); color:white; }
+    .btn-ghost{ background:transparent; border:1px solid #e6e9ef; color:var(--accent); }
+    .btn-clear{ background:#fff; color:var(--muted); border:1px solid #f0f2f5; }
+
+    .result{
+      margin-top:18px;
+      padding:14px;
+      border-radius:10px;
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:space-between;
+      border:1px dashed transparent;
+      transition:all .18s ease;
+    }
+
+    .result .left { display:flex; gap:12px; align-items:center; }
+    .badge{
+      padding:8px 12px;
+      border-radius:999px;
+      font-weight:700;
+      color:white;
+      min-width:120px;
+      text-align:center;
+    }
+
+    .result.success{ background: rgba(25,135,84,0.06); border-color: rgba(25,135,84,0.12); }
+    .result.danger{ background: rgba(220,53,69,0.06); border-color: rgba(220,53,69,0.12); }
+    .result.neutral{ background: rgba(13,110,253,0.04); border-color: rgba(13,110,253,0.08); }
+
+    .badge.success{ background:var(--success); }
+    .badge.danger{ background:var(--danger); }
+    .badge.primary{ background:var(--primary); }
+
+    .meta{ color:var(--muted); font-size:13px; }
+    .small{ font-size:13px; color:var(--muted); }
+
+    /* Loading overlay */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(255,255,255,0.6);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+    }
+    .spinner{
+      width:56px;
+      height:56px;
+      border-radius:50%;
+      border:6px solid rgba(0,0,0,0.07);
+      border-top-color:var(--primary);
+      animation:spin 1s linear infinite;
+    }
+    @keyframes spin{ to{ transform:rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width:640px){
+      .row{ flex-direction:column; }
+      header{ flex-direction:column; align-items:flex-start; gap:8px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="card">
+      <header>
+        <div class="brand">
+          <div class="logo">AR</div>
+          <div>
+            <h1>Amazon Review Sentiment</h1>
+            <p class="lead">Paste a review, choose algorithm and get a color-coded sentiment.</p>
+          </div>
+        </div>
+
+        <div class="small">Model: <strong>{{ algorithm_name or '—' }}</strong></div>
+      </header>
+
+      <!-- FORM -->
+      <form id="predict-form" action="/" method="post" autocomplete="off">
+        <div class="row">
+          <div class="col">
+            <label for="review">Enter your review</label>
+            <textarea id="review" name="review" placeholder="Type or paste a review (e.g., 'This product is terrible')...">{{ request.form.review or '' }}</textarea>
+            <div class="small" style="margin-top:8px;">Tip: Clear punctuation, or paste raw text — model uses tokenizer/vectorizer from backend.</div>
+          </div>
+
+          <div style="width:230px">
+            <label for="algorithm">Select Algorithm</label>
+            <select id="algorithm" name="algorithm">
+              <option value="logistic">Logistic Regression</option>
+              <option value="naive_bayes">Naive Bayes</option>
+              <option value="svm">Support Vector Machine</option>
+              <option value="random_forest">Random Forest</option>
+              <option value="rnn">RNN</option>
+              <option value="lstm">LSTM</option>
+            </select>
+
+            <div style="margin-top:14px;" class="controls">
+              <button type="submit" class="btn btn-primary">Predict Sentiment</button>
+              <button type="button" id="clear-btn" class="btn btn-ghost btn-clear">Clear</button>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <!-- RESULT (renders after backend response) -->
+      {% if prediction %}
+      <div id="result" class="result" aria-live="polite">
+        <div class="left">
+          <!-- badge color changed by JS based on prediction -->
+          <div id="badge" class="badge primary">{{ prediction.split(' ')[0] }}</div>
+
+          <div>
+            <div><strong id="result-text">{{ prediction }}</strong></div>
+            <div class="meta">Algorithm: <strong>{{ algorithm_name or 'Unknown' }}</strong></div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="copy-btn" class="btn btn-ghost">Copy</button>
+          <button id="try-again" class="btn btn-ghost" onclick="document.getElementById('review').focus();">Try Again</button>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="overlay" class="overlay">
+    <div style="text-align:center">
+      <div class="spinner" aria-hidden="true"></div>
+      <div class="small" style="margin-top:10px;">Predicting…</div>
+    </div>
+  </div>
+
+  <script>
+    // Show loading overlay when form submits
+    const form = document.getElementById('predict-form');
+    const overlay = document.getElementById('overlay');
+
+    form.addEventListener('submit', function (e) {
+      overlay.style.display = 'flex';
+      // normal submit will happen (page reload). If you want AJAX, replace with fetch() instead.
+    });
+
+    // Clear button: clears textarea and hides result on client-side
+    document.getElementById('clear-btn').addEventListener('click', function() {
+      document.getElementById('review').value = '';
+      // optionally remove result element if present:
+      const res = document.getElementById('result');
+      if (res) res.style.display = 'none';
+    });
+
+    // Copy result to clipboard
+    const copyBtn = document.getElementById('copy-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function() {
+        const txt = document.getElementById('result-text').innerText;
+        navigator.clipboard?.writeText(txt).then(()=> {
+          copyBtn.innerText = 'Copied';
+          setTimeout(()=> copyBtn.innerText = 'Copy', 1200);
+        });
+      });
+    }
+
+    // Color-code result badge + result box based on text
+    (function colorizeResult(){
+      const resultEl = document.getElementById('result');
+      const badge = document.getElementById('badge');
+      if (!resultEl || !badge) return;
+
+      const text = badge.innerText.toLowerCase();
+      // Accept texts like "Positive (0.95)" or "Negative (0.12)" or just "Positive"
+      if (text.includes('positive')) {
+        badge.className = 'badge success';
+        resultEl.className = 'result success';
+      } else if (text.includes('negative')) {
+        badge.className = 'badge danger';
+        resultEl.className = 'result danger';
+      } else {
+        badge.className = 'badge primary';
+        resultEl.className = 'result neutral';
+      }
+      // smooth scroll result into view
+      resultEl.scrollIntoView({behavior:'smooth', block:'center'});
+    })();
+  </script>
+</body>
+</html>
